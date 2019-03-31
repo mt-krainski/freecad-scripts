@@ -1,0 +1,7 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Remove Duplicate Faces"/>
+ <filter name="Remove Duplicate Vertices"/>
+ <filter name="Remove Faces from Non Manifold Edges"/>
+ <xmlfilter name="Compute Geometric Measures"/>
+</FilterScript>
