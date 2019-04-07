@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 from lxml import etree
 import os
@@ -24,6 +26,7 @@ COM_TAGS = ['x', 'y', 'z']
 COM_RE = meshlab_re_template('Center of Mass', COM_TAGS)
 INERTIA_TENSOR_TAGS = ['xx', 'xy', 'xz', 'yx', 'yy', 'yz', 'zx', 'zy', 'zz']
 INERTIA_TENSOR_RE = meshlab_re_template('Inertia Tensor', INERTIA_TENSOR_TAGS)
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def is_mesh_file(arg):
     if not os.path.exists(arg):
@@ -85,7 +88,7 @@ if __name__ == '__main__':
         print 'Error! You can only specify one - mass or density!'
         exit(-1)
 
-    script = 'cgm.mlx' if units == UNIT_MM else 'cgm_scale100.mlx'
+    script = SCRIPT_DIR+'/cgm.mlx' if units == UNIT_MM else SCRIPT_DIR+'/cgm_scale100.mlx'
     scale_factor = 1e-3 if units == UNIT_MM else 1e-2
 
     result = subprocess.Popen(
@@ -99,6 +102,7 @@ if __name__ == '__main__':
     )
 
     result.wait()
+
     properties = {}
 
     text = result.stdout.read()
