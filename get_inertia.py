@@ -222,7 +222,7 @@ if __name__ == '__main__':
             'inertia',
             **attr
         ))
-        if collision:
+        if collision_file:
             collision_root = etree.Element('collision')
             geometry = etree.SubElement(collision_root, 'geometry')
             geometry.append(etree.Element(
