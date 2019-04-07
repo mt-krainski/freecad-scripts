@@ -26,6 +26,9 @@ COM_TAGS = ['x', 'y', 'z']
 COM_RE = meshlab_re_template('Center of Mass', COM_TAGS)
 INERTIA_TENSOR_TAGS = ['xx', 'xy', 'xz', 'yx', 'yy', 'yz', 'zx', 'zy', 'zz']
 INERTIA_TENSOR_RE = meshlab_re_template('Inertia Tensor', INERTIA_TENSOR_TAGS)
+BOUNDING_BOX_TAGS = ['x', 'y', 'z']
+BOUNDING_BOX_MIN_RE = meshlab_re_template('Mesh Bounding Box min', BOUNDING_BOX_TAGS)
+BOUNDING_BOX_MAX_RE = meshlab_re_template('Mesh Bounding Box max', BOUNDING_BOX_TAGS)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def is_mesh_file(arg):
@@ -75,6 +78,10 @@ if __name__ == '__main__':
         type=str.lower,
         default=FORMAT_URDF
     )
+    parser.add_argument('--collision',
+        help='Export bounding box as collision element (only for URDF)',
+        action='store_true',
+    )
     args = parser.parse_args()
 
     input_file = args.input_file
@@ -82,6 +89,7 @@ if __name__ == '__main__':
     density = args.density
     mass = args.mass
     format = args.format
+    collision = args.collision
     output_file = args.output_file or input_file.split('.')[0]+'.'+format
 
     if density is not None and mass is not None:
@@ -124,6 +132,39 @@ if __name__ == '__main__':
         for tag, item in zip(COM_TAGS, re.search(COM_RE, text).group(*COM_TAGS))
     ])
 
+    bounding_box_min =dict([
+        (tag, float(item)*scale_factor)
+        for tag, item in
+        zip(
+            BOUNDING_BOX_TAGS,
+            re.search(BOUNDING_BOX_MIN_RE, text).group(*BOUNDING_BOX_TAGS)
+        )
+    ])
+
+    bounding_box_max =dict([
+        (tag, float(item)*scale_factor)
+        for tag, item in
+        zip(
+            BOUNDING_BOX_TAGS,
+            re.search(BOUNDING_BOX_MAX_RE, text).group(*BOUNDING_BOX_TAGS)
+        )
+    ])
+
+    bounding_box_offset = dict([
+        (key, (bounding_box_min[key]+bounding_box_max[key])/2)
+        for key in bounding_box_min
+    ])
+
+    properties['collision'] = {
+        'x': bounding_box_max['x'] - bounding_box_min['x'],
+        'y': bounding_box_max['y'] - bounding_box_min['y'],
+        'z': bounding_box_max['z'] - bounding_box_min['z'],
+        'offset-x': bounding_box_offset['x'],
+        'offset-y': bounding_box_offset['y'],
+        'offset-z': bounding_box_offset['z'],
+    }
+
+
     # meshlab assumes density=1, so mass=volume. To properly calculate inertia
     # first we need to rescale to mass=1 and then to proper mass
     properties['inertia-tensor']=dict([
@@ -144,9 +185,9 @@ if __name__ == '__main__':
         ('izz', 'zz'),
     ]
 
-    root = None
-
     if format == FORMAT_SDF:
+        if collision:
+            raise ValueError('Currently can\'t export collision for sdf!')
         root = etree.Element('inertial')
         root.append(etree.Comment('  Volume: {}  '.format(properties['volume'])))
         xml_mass = etree.SubElement(root, 'mass')
@@ -157,6 +198,9 @@ if __name__ == '__main__':
         for tag, value in tag_value:
             attr = etree.SubElement(xml_inertia, tag)
             attr.text = ' {: e} '.format(properties['inertia-tensor'][value])
+
+        with open(output_file, 'w') as f:
+            f.write(etree.tostring(root, pretty_print=True))
 
     elif format == FORMAT_URDF:
         root = etree.Element('inertial')
@@ -178,11 +222,21 @@ if __name__ == '__main__':
             'inertia',
             **attr
         ))
+        if collision:
+            collision_root = etree.Element('collision')
+            geometry = etree.SubElement(collision_root, 'geometry')
+            geometry.append(etree.Element(
+                'box',
+                size='{x} {y} {z}'.format(**properties['collision'])
+            ))
+            collision_root.append(etree.Element(
+                'origin',
+                xyz='{offset-x} {offset-y} {offset-z}'.format(**properties['collision'])
+            ))
+
+        with open(output_file, 'w') as f:
+            f.write(etree.tostring(root, pretty_print=True))
+            if collision:
+                f.write(etree.tostring(collision_root, pretty_print=True))
     else:
         raise ValueError('Improper type defined!')
-
-    if root is None:
-        raise ValueError('Improper root node!')
-
-    with open(output_file, 'w') as f:
-        f.write(etree.tostring(root, pretty_print=True))
