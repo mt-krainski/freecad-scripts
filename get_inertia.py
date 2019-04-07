@@ -78,9 +78,9 @@ if __name__ == '__main__':
         type=str.lower,
         default=FORMAT_URDF
     )
-    parser.add_argument('--collision',
-        help='Export bounding box as collision element (only for URDF)',
-        action='store_true',
+    parser.add_argument('-c', '--collision-file',
+        help='Export bounding box as collision element (only for URDF).',
+        metavar='FILE'
     )
     args = parser.parse_args()
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     density = args.density
     mass = args.mass
     format = args.format
-    collision = args.collision
+    collision_file = args.collision_file
     output_file = args.output_file or input_file.split('.')[0]+'.'+format
 
     if density is not None and mass is not None:
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     ]
 
     if format == FORMAT_SDF:
-        if collision:
+        if collision_file:
             raise ValueError('Currently can\'t export collision for sdf!')
         root = etree.Element('inertial')
         root.append(etree.Comment('  Volume: {}  '.format(properties['volume'])))
@@ -236,7 +236,8 @@ if __name__ == '__main__':
 
         with open(output_file, 'w') as f:
             f.write(etree.tostring(root, pretty_print=True))
-            if collision:
+        if collision_file:
+            with open(collision_file, 'w') as f:
                 f.write(etree.tostring(collision_root, pretty_print=True))
     else:
         raise ValueError('Improper type defined!')
