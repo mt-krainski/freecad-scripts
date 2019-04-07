@@ -203,13 +203,14 @@ if __name__ == '__main__':
             f.write(etree.tostring(root, pretty_print=True))
 
     elif format == FORMAT_URDF:
-        root = etree.Element('inertial')
-        root.append(etree.Element(
+        root = etree.Element('root')
+        inertia = etree.SubElement(root, 'inertial')
+        inertia.append(etree.Element(
             'origin',
             rpy='0 0 0',
             xyz='{x} {y} {z}'.format(**properties['center-of-mass'])
         ))
-        root.append(etree.Element(
+        inertia.append(etree.Element(
             'mass',
             value='{}'.format(properties['mass'])
         ))
@@ -218,12 +219,12 @@ if __name__ == '__main__':
         for tag, value in tag_value:
             attr[tag] = '{}'.format(properties['inertia-tensor'][value])
 
-        root.append(etree.Element(
+        inertia.append(etree.Element(
             'inertia',
             **attr
         ))
         if collision_file:
-            collision_root = etree.Element('collision')
+            collision_root = etree.SubElement(root, 'collision')
             geometry = etree.SubElement(collision_root, 'geometry')
             geometry.append(etree.Element(
                 'box',
@@ -236,8 +237,5 @@ if __name__ == '__main__':
 
         with open(output_file, 'w') as f:
             f.write(etree.tostring(root, pretty_print=True))
-        if collision_file:
-            with open(collision_file, 'w') as f:
-                f.write(etree.tostring(collision_root, pretty_print=True))
     else:
         raise ValueError('Improper type defined!')
